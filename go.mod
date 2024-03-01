@@ -1,4 +1,4 @@
-module github.com/meebish/tempapp
+module github.com/meebish/pocket-health
 
 go 1.22.0
 

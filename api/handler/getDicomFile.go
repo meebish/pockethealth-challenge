@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"bytes"
@@ -10,34 +10,27 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	dicomFile "github.com/meebish/pocket-health/internal"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
 )
 
-func main() {
-	router := gin.Default()
-	router.POST("/upload", handler.uploadDICOMFile)
-	router.GET("/dicomFile/:fileName", getDICOMData)
-
-	router.Run("localhost:8080")
-}
-
-func getDICOMData(c *gin.Context) {
+func GetDICOMData(c *gin.Context) {
 	filename := c.Param("fileName")
-	dicomData, err := dicom.ParseFile(filename, nil)
+	filepath := dicomFile.GenerateLocalFilePath(dicomFile.LocalPath, filename)
+	dicomData, err := dicom.ParseFile(filepath, nil)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not find the file: %s", filename)})
 		return
 	}
 
 	tagParam, tagParamExists := c.GetQuery("tag")
-	getPngParam, getPngParamExists := c.GetQuery("png")
+	_, getPngParamExists := c.GetQuery("png")
 
 	if !tagParamExists && !getPngParamExists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search params, at least one of 'tag' or 'png' query param is required"})
 		return
 	}
-	fmt.Println("================")
 
 	if tagParamExists {
 		if tagParam == "" {
@@ -81,8 +74,6 @@ func getDICOMData(c *gin.Context) {
 			return
 		}
 
-		fmt.Println(dicomData.FindElementByTag(newTag))
-		fmt.Println("================")
 		c.JSON(http.StatusOK, gin.H{
 			"data": gin.H{
 				"tag-values":             tagParam,
@@ -92,8 +83,6 @@ func getDICOMData(c *gin.Context) {
 		})
 
 	} else if getPngParamExists {
-		fmt.Println("param is: ", getPngParam)
-
 		pixelDataElement, _ := dicomData.FindElementByTag(tag.PixelData)
 		pixelDataInfo := dicom.MustGetPixelDataInfo(pixelDataElement.Value)
 		images := []image.Image{}
@@ -109,5 +98,4 @@ func getDICOMData(c *gin.Context) {
 
 		c.Data(http.StatusOK, "image/png", buffer.Bytes())
 	}
-
 }
