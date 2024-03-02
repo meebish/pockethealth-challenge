@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -24,7 +25,7 @@ type LocalUploader struct {
 func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
 	// In case folder doesn't exist
 	if err := os.MkdirAll(lu.UploadPath, os.ModePerm); err != nil {
-		return "", err
+		return "", fmt.Errorf("could not create upload folder: %s", err.Error())
 	}
 
 	// Generate file names and paths for local storage
@@ -34,16 +35,20 @@ func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileH
 	// Create and move file there
 	dst, err := os.Create(newFilepath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("could not create file destination: %s", err.Error())
 	}
 	defer dst.Close()
 
 	// If something goes wrong, remove the file that was created
 	if bytes, err := io.Copy(dst, file); err != nil {
-		os.Remove(dst.Name())
-		return "", err
+		if remErr := os.Remove(dst.Name()); remErr != nil {
+			return "", fmt.Errorf("error cleaning the file after something went wrong during upload: %s. Orig err: %s", remErr.Error(), err.Error())
+		}
+		return "", fmt.Errorf("the file could not be uploaded, please try again: %s", err.Error())
 	} else if bytes != fileHeader.Size {
-		os.Remove(dst.Name())
+		if remErr := os.Remove(dst.Name()); remErr != nil {
+			return "", fmt.Errorf("error cleaning the file after uploading incorrect size: %s. Orig err: %s", remErr.Error(), err.Error())
+		}
 		return "", fmt.Errorf("the file was not uploaded properly, please try again")
 	}
 
@@ -51,14 +56,19 @@ func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileH
 }
 
 // Helpers
-// Generate unique dicom file name in case of repeat file names
+// Generate unique DICOM file name in case of repeat file names
 func GenerateDicomFileName(filename string) string {
 	id := uuid.New().String()
 
-	return fmt.Sprintf("%s-%s.dcm", id, filename)
+	// Check if the filename already ends with ".dcm"
+	if !strings.HasSuffix(filename, ".dcm") {
+		filename += ".dcm"
+	}
+
+	return fmt.Sprintf("%s-%s", id, filename)
 }
 
-// Generate full loacl dicom file path
+// Generate full loacl DICOM file path
 func GenerateLocalFilePath(filePath, filename string) string {
 	return fmt.Sprintf("%s/%s", filePath, filename)
 }
