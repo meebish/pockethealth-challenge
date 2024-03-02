@@ -60,7 +60,7 @@ Where xxxx = tag group and yyyy = tag element
 Example
 ```sh
 curl -i -X GET \
-  'http://localhost:8080/dicomFile/89b3857f-f13e-48a6-92f7-852a27a33420-IM000001.dcm?tag=(0002%2C0002)'
+  'http://localhost:8080/dicomFile/ec122fa4-9626-401c-a9b1-f48b8818b0fc-IM000001.dcm?tag=(0002%2C0002)'
 ```
 
 ### Sample Response
@@ -81,7 +81,7 @@ Example
 ```sh
 curl -v -X GET \
   -o image.png \
-  'http://localhost:8080/dicomFile/89b3857f-f13e-48a6-92f7-852a27a33420-IM000001.dcm?png'
+  'http://localhost:8080/dicomFile/ec122fa4-9626-401c-a9b1-f48b8818b0fc-IM000001.dcm?png'
 ```
 
 Or go to the same link in a browser
@@ -99,3 +99,23 @@ Transfer-Encoding: chunked
 An image similar to
 
 <img src="https://github.com/meebish/pocket-health/assets/77037765/fe62b912-68f9-4f6b-b10a-ef09a5f0486b.png" width="250">
+
+# Next Steps
+* Functionality
+  * Bulk upload
+  * User Access Control Settings
+  * Necessitates some db to store user info and their corresponding files
+  * Interfacing out DICOM file downloader
+  * Build out GRPC functionality so microservice can also be used to talk directly with other microservices
+  * Build out parallelization to scale up
+  * Middleware for user permissions, configurations, logging
+* Test
+  * Integration tests
+  * E2E tests
+  * Stress tests
+  * Postman tests
+* Devops
+  * Microservice health checks
+  * Better logging (log levels, more detailed messages)
+  * Better monitoring/alerting (e.g. hooking service up to datadog/some other service)
+  * Containerize it for easier deployment
