@@ -51,7 +51,6 @@ func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileH
 }
 
 // Helpers
-
 // Generate unique dicom file name in case of repeat file names
 func GenerateDicomFileName(filename string) string {
 	id := uuid.New().String()

@@ -3,25 +3,31 @@ package handler
 import (
 	"bytes"
 	"fmt"
-	"image"
 	"image/png"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	dicomFile "github.com/meebish/pocket-health/internal"
 	"github.com/suyashkumar/dicom"
-	"github.com/suyashkumar/dicom/pkg/tag"
 )
 
+type DicomHeaderAttrResp struct {
+	DicomHeaderAttributes dicomFile.DICOMHeaderAttributes `json:"data"`
+}
+
+// GET /dicomFile/:filename
+// GetDICOMData will retrieve either the header attribute or the png of the DICOM file depending on the query parameter
+// Query Params:
+// tag=(xxxx,yyyy) - Tag to look for in the dicom data, where xxxx is the tag group, and yyyy is the tag element
+// png - If it exists, will retrieve png
 func GetDICOMData(c *gin.Context) {
 	filename := c.Param("fileName")
 	filepath := dicomFile.GenerateLocalFilePath(dicomFile.LocalPath, filename)
 
+	//TODO Write a interface to get dicom data
 	dicomData, err := dicom.ParseFile(filepath, nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not find the file: %s. Error: %s", filename, err.Error())})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not find file: %s. Error: %s", filename, err.Error())})
 		return
 	}
 
@@ -33,69 +39,36 @@ func GetDICOMData(c *gin.Context) {
 		return
 	}
 
+	// Choose what kind of DICOM data to retrieve, will prioritze header attributes if both exists
 	if tagParamExists {
+		// Retrieve header attributes
 		if tagParam == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Empty tag query param, tag=(xxxx,yyyy) query param is expected"})
 			return
 		}
 
-		tagValues := strings.Split(strings.Trim(tagParam, "()"), ",")
-
-		if len(tagValues) != 2 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid number of values in tag query param, tag=(xxxx,yyyy) query param is expected, got: %s", tagParam)})
-			return
-		}
-
-		tagGroup, err := strconv.ParseUint(tagValues[0], 16, 16)
+		dicomHeaderAttr, err := dicomFile.GetDICOMAttribute(tagParam, dicomData)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid tag group found, a hexadecimal value is expected, got: %s", tagValues[0])})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not retrieve DICOM header attributes: %s", err.Error())})
 			return
 		}
 
-		tagElement, err := strconv.ParseUint(tagValues[1], 16, 16)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid tag element found, a hexadecimal value is expected, got: %s", tagValues[1])})
-			return
-		}
-
-		newTag := tag.Tag{
-			Group:   uint16(tagGroup),
-			Element: uint16(tagElement),
-		}
-
-		tagInfo, err := tag.Find(newTag)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid tag %s was requested: %s", tagParam, err.Error())})
-			return
-		}
-
-		dicomElement, err := dicomData.FindElementByTag(newTag)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No DICOM element was found for the %s tag %s", tagInfo.Name, tagParam)})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"data": gin.H{
-				"tag-values":             tagParam,
-				"header-attribute-name":  tagInfo.Name,
-				"header-attribute-value": dicomElement.Value.String(),
-			},
+		c.JSON(http.StatusOK, DicomHeaderAttrResp{
+			DicomHeaderAttributes: *dicomHeaderAttr,
 		})
-	} else if getPngParamExists {
-		pixelDataElement, _ := dicomData.FindElementByTag(tag.PixelData)
-		pixelDataInfo := dicom.MustGetPixelDataInfo(pixelDataElement.Value)
-		images := []image.Image{}
-		for _, fr := range pixelDataInfo.Frames {
-			img, _ := fr.GetImage() // The Go image.Image for this frame
 
-			images = append(images, img)
+	} else if getPngParamExists {
+		// Retrieve png
+
+		dicomImage, err := dicomFile.GetDICOMImage(dicomData)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not retrieve image from DICOM file: %s", err.Error())})
+			return
 		}
 
 		var buffer bytes.Buffer
-
-		if err := png.Encode(&buffer, images[0]); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Could not properly encode DICOM as a png: %s", err.Error())})
+		if err := png.Encode(&buffer, *dicomImage); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not properly encode DICOM as a png: %s", err.Error())})
 			return
 		}
 
