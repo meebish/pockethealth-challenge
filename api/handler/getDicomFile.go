@@ -18,9 +18,10 @@ import (
 func GetDICOMData(c *gin.Context) {
 	filename := c.Param("fileName")
 	filepath := dicomFile.GenerateLocalFilePath(dicomFile.LocalPath, filename)
+
 	dicomData, err := dicom.ParseFile(filepath, nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not find the file: %s", filename)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Could not find the file: %s. Error: %s", filename, err.Error())})
 		return
 	}
 

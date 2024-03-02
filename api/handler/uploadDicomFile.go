@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,11 +27,13 @@ func UploadDICOMFile(c *gin.Context, uploader dicomFile.FileUploader) {
 		return
 	}
 
+	// Need to move the file cursor back to the start since the above Parse function reads it to the end
+	file.Seek(0, io.SeekStart)
 	savedFileName, err := uploader.Upload(file, header)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not save file - %s", err.Error())})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("File saved as: %s", savedFileName)})
+	c.JSON(http.StatusCreated, gin.H{"message": fmt.Sprintf("File saved as: %s", savedFileName)})
 }

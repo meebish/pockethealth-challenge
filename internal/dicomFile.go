@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const LocalPath = "../files"
+const LocalPath = "./files"
 
 // Uploader interface so we can store files other than local
 type FileUploader interface {
@@ -22,7 +22,6 @@ type LocalUploader struct {
 }
 
 func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
-
 	// In case folder doesn't exist
 	if err := os.MkdirAll(lu.UploadPath, os.ModePerm); err != nil {
 		return "", err
@@ -39,8 +38,13 @@ func (lu *LocalUploader) Upload(file multipart.File, fileHeader *multipart.FileH
 	}
 	defer dst.Close()
 
-	if _, err := io.Copy(dst, file); err != nil {
+	// If something goes wrong, remove the file that was created
+	if bytes, err := io.Copy(dst, file); err != nil {
+		os.Remove(dst.Name())
 		return "", err
+	} else if bytes != fileHeader.Size {
+		os.Remove(dst.Name())
+		return "", fmt.Errorf("the file was not uploaded properly, please try again")
 	}
 
 	return newFilename, nil
