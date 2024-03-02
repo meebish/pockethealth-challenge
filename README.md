@@ -96,4 +96,6 @@ Transfer-Encoding: chunked
 [36651 bytes data]
 ```
 
-An image similar to 
+An image similar to
+
+<img src="https://github.com/meebish/pocket-health/assets/77037765/fe62b912-68f9-4f6b-b10a-ef09a5f0486b.png" width="250">
