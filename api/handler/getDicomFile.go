@@ -82,7 +82,6 @@ func GetDICOMData(c *gin.Context) {
 				"header-attribute-value": dicomElement.Value.String(),
 			},
 		})
-
 	} else if getPngParamExists {
 		pixelDataElement, _ := dicomData.FindElementByTag(tag.PixelData)
 		pixelDataInfo := dicom.MustGetPixelDataInfo(pixelDataElement.Value)
@@ -95,7 +94,10 @@ func GetDICOMData(c *gin.Context) {
 
 		var buffer bytes.Buffer
 
-		_ = png.Encode(&buffer, images[0])
+		if err := png.Encode(&buffer, images[0]); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Could not properly encode DICOM as a png: %s", err.Error())})
+			return
+		}
 
 		c.Data(http.StatusOK, "image/png", buffer.Bytes())
 	}

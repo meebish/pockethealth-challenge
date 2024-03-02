@@ -17,7 +17,6 @@ git clone git@github.com:meebish/pocket-health.git
 
 cd pocket-health
 
-# run the app
 go run cmd/main.go
 ```
 
@@ -54,9 +53,47 @@ Content-Length: 78
 
 ## Get DICOM Header Attributes
 ### Request
-`GET /dicomFile/:filename`
+`GET /dicomFile/:filename?tag=(xxxx,yyyy)`
+
+Where xxxx = tag group and yyyy = tag element
 
 Example
 ```sh
-curl -i 'localhost:8080/dicomFile/ec122fa4-9626-401c-a9b1-f48b8818b0fc-IM000001.dcm?tag=(0002%2C0002)'
+curl -i -X GET \
+  'http://localhost:8080/dicomFile/89b3857f-f13e-48a6-92f7-852a27a33420-IM000001.dcm?tag=(0002%2C0002)'
 ```
+
+### Sample Response
+```
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Thu, 29 Feb 2024 23:33:17 GMT
+Content-Length: 146
+
+{"data":{"header-attribute-name":"MediaStorageSOPClassUID","header-attribute-value":"[1.2.840.10008.5.1.4.1.1.1.1.1]","tag-values":"(0002,0002)"}}
+```
+
+## Get DICOM as a png
+### Request
+`GET /dicomFile/:filename?png`
+
+Example
+```sh
+curl -v -X GET \
+  -o image.png \
+  'http://localhost:8080/dicomFile/89b3857f-f13e-48a6-92f7-852a27a33420-IM000001.dcm?png'
+```
+
+Or go to the same link in a browser
+
+### Sample Response
+```
+HTTP/1.1 200 OK
+Content-Type: image/png
+Date: Fri, 01 Mar 2024 00:12:48 GMT
+Transfer-Encoding: chunked
+
+[36651 bytes data]
+```
+
+An image similar to 
